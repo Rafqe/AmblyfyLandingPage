@@ -11,7 +11,7 @@
     <meta name="description" content="" />
 
     <title>Amblyfy - Screen Early. See Clearly.</title>
-   
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -36,16 +36,31 @@
     <style>
       body {
         font-family: "Inter", sans-serif;
-        background-color: #f8fafc; /* Default light background */
+        background-color: #f8fafc;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto; /* Enable vertical scrolling */
+        position: relative; /* Ensure proper stacking context */
       }
-      /* Custom scroll-behavior for smooth scrolling to anchor links */
+
       html {
         scroll-behavior: smooth;
+        height: 100%;
+        overflow-y: auto; /* Enable vertical scrolling */
+      }
+
+      main {
+        flex: 1;
+        position: relative; /* Ensure proper stacking context */
+        overflow-y: auto; /* Enable vertical scrolling */
       }
 
       /* Add padding to sections to account for fixed navbar */
       section {
-        scroll-margin-top: 80px; /* Adjust this value based on your navbar height */
+        scroll-margin-top: 80px;
+        position: relative; /* Ensure proper stacking context */
       }
 
       /* Styles for scroll-triggered animations */
@@ -57,6 +72,59 @@
       .fade-in-up.is-visible {
         opacity: 1;
         transform: translateY(0);
+      }
+    </style>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #f0f2f5;
+        margin: 0;
+        overflow: hidden; /* Prevent body scroll if symbols go out of bounds */
+      }
+
+      /* Custom styles for the Snellen symbols container */
+      .snellen-container {
+        position: absolute;
+        inset: 0;
+        background-color: transparent;
+        border: none;
+        border-radius: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      /* Show container on parent hover */
+      #testEyesContainer:hover .snellen-container,
+      #startTreatmentContainer:hover .snellen-container,
+      #consistencyContainer:hover .snellen-container {
+        opacity: 1;
+      }
+
+      /* Styles for individual Snellen symbols */
+      .snellen-symbol,
+      .start-symbol,
+      .consistency-symbol {
+        position: absolute;
+        color: rgba(255, 255, 255, 0.3);
+        font-weight: bold;
+        user-select: none;
+        pointer-events: none;
+        line-height: 1;
+        transition: transform 0.2s ease-out;
+      }
+
+      .start-symbol img,
+      .consistency-symbol img {
+        width: 20px;
+        height: 20px;
+        opacity: 0.3;
       }
     </style>
   </head>
@@ -156,10 +224,14 @@
           <h1
             class="text-4xl md:text-6xl font-extrabold leading-tight mb-6 rounded-lg p-2 bg-white bg-opacity-10 shadow-lg"
           >
-          Screen Early See Clearly
+            Screen Early See Clearly
           </h1>
           <p class="text-lg md:text-xl mb-8 opacity-90">
-            We solve the challenges parents face when treating children with amblyopia, also known as "lazy eye." Our greatest mission is to create a comprehensive service that will make the treatment journey easier for parents, shorten the healing process, and empower families along the way.
+            We solve the challenges parents face when treating children with
+            amblyopia, also known as "lazy eye." Our greatest mission is to
+            create a comprehensive service that will make the treatment journey
+            easier for parents, shorten the healing process, and empower
+            families along the way.
           </p>
           <a
             href="#steps"
@@ -182,47 +254,86 @@
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div
-              class="bg-gradient-to-b from-brand-cyan to-brand-dark-green p-8 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 border border-brand-dark-blue fade-in-up"
+              class="bg-gradient-to-b from-brand-cyan to-brand-dark-green p-8 rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 border border-brand-dark-blue fade-in-up relative overflow-hidden hover:bg-opacity-90 hover:scale-[1.02]"
+              id="testEyesContainer"
             >
-              <div class="text-brand-cyan mb-4">
-                <img src="assets/testEyes.png" alt="Test Your Eyes" class="w-20 h-20 mx-auto">
+              <div
+                id="snellenAnimationContainer"
+                class="snellen-container absolute inset-0"
+              ></div>
+              <div class="text-brand-cyan mb-4 relative z-10">
+                <img
+                  src="assets/testEyes.png"
+                  alt="Test Your Eyes"
+                  class="w-20 h-20 mx-auto"
+                />
               </div>
-              <h3 class="text-xl text-white font-semibold mb-4">Test Your Eyes</h3>
-              <p class="text-white">
-                Our platform is built for speed, ensuring a seamless experience
-                for all users.
+              <h3 class="text-xl text-white font-semibold mb-4 relative z-10">
+                Test Your Eyes
+              </h3>
+              <p class="text-white relative z-10">
+                Amblyfy offers a comprehensive eye test that can be completed in
+                just a few minutes to determine if your child might have
+                amblyopia.
               </p>
             </div>
             <div
-              class="bg-gradient-to-b from-brand-dark-green to-brand-light-green p-8 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 border border-brand-dark-blue fade-in-up"
-              style="transition-delay: 0.1s"
+              class="bg-gradient-to-b from-brand-dark-green to-brand-light-green p-8 rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 border border-brand-dark-blue fade-in-up relative overflow-hidden hover:bg-opacity-90 hover:scale-[1.02]"
+              id="startTreatmentContainer"
             >
-              <div class="text-brand-cyan mb-4">
-                <img src="assets/start.png" alt="Start Treatment" class="w-20 h-20 mx-auto">
+              <div
+                id="startAnimationContainer"
+                class="snellen-container absolute inset-0"
+              ></div>
+              <div class="text-brand-cyan mb-4 relative z-10">
+                <img
+                  src="assets/start.png"
+                  alt="Start Treatment"
+                  class="w-20 h-20 mx-auto"
+                />
               </div>
-              <h3 class="text-xl text-white font-semibold mb-4">Start Treatment</h3>
-              <p class="text-white">
-                Your data is protected with industry-leading security protocols
-                and encryption.
+              <h3 class="text-xl text-white font-semibold mb-4 relative z-10">
+                Start Treatment
+              </h3>
+              <p class="text-white relative z-10">
+                With the results of the eye tests, you can start the treatment
+                by connecting with an eye specialist. And start the journey to a
+                clear vision.
               </p>
             </div>
             <div
-              class="bg-gradient-to-b from-brand-light-green to-brand-pale-green p-8 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 border border-brand-dark-blue fade-in-up"
-              style="transition-delay: 0.2s"
+              class="bg-gradient-to-b from-brand-light-green to-brand-pale-green p-8 rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 border border-brand-dark-blue fade-in-up relative overflow-hidden hover:bg-opacity-90 hover:scale-[1.02]"
+              id="consistencyContainer"
             >
-              <div class="text-brand-cyan mb-4">
-                <img src="assets/zakis.svg" alt="Consistency" class="w-20 h-20 mx-auto">
+              <div
+                id="consistencyAnimationContainer"
+                class="snellen-container absolute inset-0"
+              ></div>
+              <div class="text-brand-cyan mb-4 relative z-10">
+                <img
+                  src="assets/zakis.svg"
+                  alt="Consistency"
+                  class="w-20 h-20 mx-auto"
+                />
               </div>
-              <h3 class="text-xl text-white font-semibold mb-4">Stay Consistent</h3>
-              <p class="text-white">
-                We are currently developing applications specifically designed for amblyopia treatment.Our goal is to create an inspiring calendar for children, helping both children and parents stay consistent throughout the treatment process — consistency being one of the key factors for successful amblyopia therapy.
+              <h3 class="text-xl text-white font-semibold mb-4 relative z-10">
+                Stay Consistent
+              </h3>
+              <p class="text-white relative z-10">
+                The team of Amblyfy believes the most important factor in
+                successful amblyopia treatment is consistency. That's why we
+                offer a personalized treatment plan tailored to your child's
+                needs, ensuring the best possible outcome.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="about" class="py-16 px-6 md:px-12 bg-gradient-to-br from-brand-cyan to-brand-dark-green">
+      <section
+        id="about"
+        class="py-16 px-6 md:px-12 bg-gradient-to-br from-brand-cyan to-brand-dark-green"
+      >
         <div
           class="container mx-auto flex flex-col md:flex-row items-center gap-12"
         >
@@ -237,32 +348,25 @@
             class="md:w-1/2 text-center md:text-left fade-in-up"
             style="transition-delay: 0.1s"
           >
-            <h2
-              class="text-3xl md:text-4xl font-bold text-white mb-6"
-            >
-              About Our Mission
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
+              Our Mission
             </h2>
             <p class="text-lg text-white mb-4">
-              We are a passionate team dedicated to empowering individuals and
-              businesses with cutting-edge technology and unparalleled support.
-              Our mission is to simplify complex challenges and foster
-              innovation.
-            </p>
-            <p class="text-lg text-white">
-              With years of experience and a commitment to excellence, we strive
-              to deliver solutions that not only meet but exceed your
-              expectations.
+              We are currently developing applications specifically designed for
+              amblyopia treatment. Our goal is to create an inspiring calendar
+              for children, helping both children and parents stay consistent
+              throughout the treatment process — consistency being one of the
+              key factors for successful amblyopia therapy.
             </p>
           </div>
         </div>
       </section>
 
-      <section
-        id="contact"
-        class="py-16 px-6 md:px-12 bg-white"
-      >
+      <section id="contact" class="py-16 px-6 md:px-12 bg-white">
         <div class="container mx-auto text-center max-w-2xl">
-          <h2 class="text-3xl md:text-4xl font-bold text-brand-dark-blue mb-8 fade-in-up">
+          <h2
+            class="text-3xl md:text-4xl font-bold text-brand-dark-blue mb-8 fade-in-up"
+          >
             Get in Touch
           </h2>
           <p
@@ -352,9 +456,9 @@
     </button>
 
     <footer
-      class="bg-brand-dark-blue text-white py-8 px-6 md:px-12 text-center"
+      class="bg-brand-dark-blue text-white py-8 px-6 md:px-12 text-center w-full"
     >
-      <div class="container mx-auto">
+      <div class="w-full max-w-7xl mx-auto">
         <p class="text-sm">&copy; 2025 Amblyfy. All rights reserved.</p>
         <div class="flex justify-center space-x-4 mt-4">
           <a
@@ -404,7 +508,7 @@
         backToTopButton.addEventListener("click", function () {
           window.scrollTo({
             top: 0,
-            behavior: "smooth", // Smooth scroll to top
+            behavior: "smooth",
           });
         });
 
@@ -412,16 +516,16 @@
         const animatedElements = document.querySelectorAll(".fade-in-up");
 
         const observerOptions = {
-          root: null, // relative to the viewport
+          root: null,
           rootMargin: "0px",
-          threshold: 0.1, // 10% of the element must be visible to trigger
+          threshold: 0.1,
         };
 
         const observer = new IntersectionObserver((entries, observer) => {
           entries.forEach((entry) => {
             if (entry.isIntersecting) {
               entry.target.classList.add("is-visible");
-              observer.unobserve(entry.target); // Stop observing once animated
+              observer.unobserve(entry.target);
             }
           });
         }, observerOptions);
@@ -429,7 +533,253 @@
         animatedElements.forEach((element) => {
           observer.observe(element);
         });
+
+        // --- Smooth Scrolling for Navigation Links ---
+        document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+          anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute("href");
+            const targetElement = document.querySelector(targetId);
+
+            if (targetElement) {
+              const headerOffset = 80; // Height of your fixed header
+              const elementPosition = targetElement.getBoundingClientRect().top;
+              const offsetPosition =
+                elementPosition + window.pageYOffset - headerOffset;
+
+              window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth",
+              });
+            }
+          });
+        });
       });
+      // Get the container elements
+      const snellenContainer = document.getElementById(
+        "snellenAnimationContainer"
+      );
+      const startContainer = document.getElementById("startAnimationContainer");
+      const consistencyContainer = document.getElementById(
+        "consistencyAnimationContainer"
+      );
+      const testEyesContainer = document.getElementById("testEyesContainer");
+      const startTreatmentContainer = document.getElementById(
+        "startTreatmentContainer"
+      );
+      const consistencyContainerParent = document.getElementById(
+        "consistencyContainer"
+      );
+
+      // Define the Snellen chart symbols
+      const snellenSymbols = [
+        "E",
+        "F",
+        "P",
+        "T",
+        "O",
+        "Z",
+        "L",
+        "D",
+        "C",
+        "R",
+        "U",
+        "V",
+      ];
+
+      // Configuration for the animations
+      const config = {
+        numberOfSymbols: 20,
+        minSize: 20,
+        maxSize: 40,
+        minSpeed: 0.2,
+        maxSpeed: 0.8,
+        spawnDelay: 200,
+      };
+
+      let animationFrameId = null;
+      let isAnimationRunning = false;
+      let isHovering = false;
+      const symbols = [];
+
+      function getRandom(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function updateSymbols(container) {
+        if (!isAnimationRunning) return;
+
+        const containerRect = container.getBoundingClientRect();
+
+        symbols.forEach((symbol) => {
+          symbol.x += symbol.directionX * symbol.speed;
+          symbol.y += symbol.directionY * symbol.speed;
+
+          if (symbol.x + symbol.size > containerRect.width || symbol.x < 0) {
+            symbol.directionX *= -1;
+            symbol.x = Math.max(
+              0,
+              Math.min(symbol.x, containerRect.width - symbol.size)
+            );
+          }
+
+          if (symbol.y + symbol.size > containerRect.height || symbol.y < 0) {
+            symbol.directionY *= -1;
+            symbol.y = Math.max(
+              0,
+              Math.min(symbol.y, containerRect.height - symbol.size)
+            );
+          }
+
+          symbol.element.style.left = `${symbol.x}px`;
+          symbol.element.style.top = `${symbol.y}px`;
+        });
+
+        animationFrameId = requestAnimationFrame(() =>
+          updateSymbols(container)
+        );
+      }
+
+      function createSymbolElement(type) {
+        const element = document.createElement("div");
+        element.classList.add(
+          type === "snellen"
+            ? "snellen-symbol"
+            : type === "start"
+            ? "start-symbol"
+            : "consistency-symbol"
+        );
+
+        if (type === "snellen") {
+          element.textContent =
+            snellenSymbols[Math.floor(Math.random() * snellenSymbols.length)];
+        } else if (type === "start") {
+          const img = document.createElement("img");
+          img.src = "assets/eyeDocEquip.png";
+          element.appendChild(img);
+        } else {
+          const img = document.createElement("img");
+          img.src = "assets/zakis.png";
+          element.appendChild(img);
+        }
+
+        return element;
+      }
+
+      function createSymbols(container, type) {
+        const size = getRandom(config.minSize, config.maxSize);
+        const speed = getRandom(config.minSpeed, config.maxSpeed);
+        const element = createSymbolElement(type);
+        element.style.fontSize = `${size}px`;
+
+        const containerRect = container.getBoundingClientRect();
+        const initialX = getRandom(0, containerRect.width - size);
+        const initialY = getRandom(0, containerRect.height - size);
+
+        element.style.left = `${initialX}px`;
+        element.style.top = `${initialY}px`;
+
+        const angle = getRandom(0, Math.PI * 2);
+
+        return {
+          element: element,
+          x: initialX,
+          y: initialY,
+          size: size,
+          speed: speed,
+          directionX: Math.cos(angle),
+          directionY: Math.sin(angle),
+        };
+      }
+
+      function startAnimation(container) {
+        if (isAnimationRunning) return;
+        isAnimationRunning = true;
+        clearSymbols(container);
+
+        const type =
+          container.id === "testEyesContainer"
+            ? "snellen"
+            : container.id === "startTreatmentContainer"
+            ? "start"
+            : "consistency";
+
+        for (let i = 0; i < config.numberOfSymbols; i++) {
+          const symbol = createSymbols(
+            container.querySelector(".snellen-container"),
+            type
+          );
+          container
+            .querySelector(".snellen-container")
+            .appendChild(symbol.element);
+          symbols.push(symbol);
+        }
+
+        animationFrameId = requestAnimationFrame(() =>
+          updateSymbols(container)
+        );
+      }
+
+      function stopAnimation() {
+        if (!isAnimationRunning) return;
+        isAnimationRunning = false;
+        cancelAnimationFrame(animationFrameId);
+        clearSymbols();
+      }
+
+      function clearSymbols(container) {
+        if (container) {
+          container.querySelector(".snellen-container").innerHTML = "";
+        }
+        symbols.length = 0;
+      }
+
+      // Add event listeners to all containers
+      [
+        testEyesContainer,
+        startTreatmentContainer,
+        consistencyContainerParent,
+      ].forEach((container) => {
+        container.addEventListener("mouseenter", () => {
+          isHovering = true;
+          const animationContainer =
+            container.querySelector(".snellen-container");
+          animationContainer.style.opacity = "1";
+          startAnimation(container);
+        });
+
+        container.addEventListener("mouseleave", () => {
+          isHovering = false;
+          const animationContainer =
+            container.querySelector(".snellen-container");
+          animationContainer.style.opacity = "0";
+          stopAnimation();
+        });
+      });
+
+      // Handle resize
+      window.addEventListener("resize", () => {
+        clearTimeout(window.resizeTimeout);
+        window.resizeTimeout = setTimeout(() => {
+          if (isHovering) {
+            const activeContainer = document.querySelector(
+              ".snellen-container:hover"
+            )?.parentElement;
+            if (activeContainer) {
+              stopAnimation();
+              startAnimation(activeContainer);
+            }
+          }
+        }, 200);
+      });
+
+      // Initial setup
+      window.onload = () => {
+        clearSymbols();
+        document.querySelectorAll(".snellen-container").forEach((container) => {
+          container.style.opacity = "0";
+        });
+      };
     </script>
   </body>
 </html>
