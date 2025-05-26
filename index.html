@@ -134,7 +134,7 @@
     >
       <nav class="container mx-auto flex justify-between items-center">
         <a
-          href="#"
+          href="#home"
           class="text-2xl font-bold text-brand-dark-blue rounded-md p-2 hover:bg-gray-100 transition-colors"
         >
           <img
@@ -376,9 +376,13 @@
             Have questions or want to learn more? Feel free to reach out to us!
           </p>
           <form
+            id="contactForm"
             class="space-y-6 bg-white p-8 rounded-lg shadow-lg border border-brand-pale-green fade-in-up"
             style="transition-delay: 0.2s"
           >
+            <div id="formStatus" class="hidden">
+              <!-- Status messages will be inserted here -->
+            </div>
             <div>
               <label
                 for="name"
@@ -426,6 +430,7 @@
             </div>
             <button
               type="submit"
+              id="submitButton"
               class="w-full bg-brand-dark-blue text-white font-bold py-3 px-6 rounded-md shadow-md hover:bg-brand-cyan hover:scale-105 transition-all duration-300 ease-in-out transform"
             >
               Send Message
@@ -780,6 +785,77 @@
           container.style.opacity = "0";
         });
       };
+
+      // Contact Form Handling
+      document
+        .getElementById("contactForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const formStatus = document.getElementById("formStatus");
+          const submitButton = document.getElementById("submitButton");
+          const originalButtonText = submitButton.textContent;
+
+          // Get form data
+          const formData = {
+            name: document.getElementById("name").value,
+            email: document.getElementById("email").value,
+            message: document.getElementById("message").value,
+          };
+
+          try {
+            // Show loading state
+            submitButton.disabled = true;
+            submitButton.textContent = "Sending...";
+            formStatus.className =
+              "p-4 mb-4 rounded-md bg-blue-100 text-blue-700";
+            formStatus.textContent = "Sending your message...";
+            formStatus.classList.remove("hidden");
+
+            // Send to backend
+            const response = await fetch(
+              "http://localhost:5001/api/contact/submit",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(formData),
+              }
+            );
+
+            console.log("Response status:", response.status);
+            const data = await response.json();
+            console.log("Response data:", data);
+
+            if (response.ok) {
+              // Show success message
+              formStatus.className =
+                "p-4 mb-4 rounded-md bg-green-100 text-green-700";
+              formStatus.textContent =
+                "Message sent successfully! We'll get back to you soon.";
+
+              // Reset form
+              this.reset();
+            } else {
+              // Show error message
+              formStatus.className =
+                "p-4 mb-4 rounded-md bg-red-100 text-red-700";
+              formStatus.textContent =
+                data.message || "Something went wrong. Please try again.";
+            }
+          } catch (error) {
+            // Show error message with more details
+            console.error("Error details:", error);
+            formStatus.className =
+              "p-4 mb-4 rounded-md bg-red-100 text-red-700";
+            formStatus.textContent = `Failed to send message: ${error.message}. Please try again.`;
+          } finally {
+            // Reset button state
+            submitButton.disabled = false;
+            submitButton.textContent = originalButtonText;
+          }
+        });
     </script>
   </body>
 </html>
