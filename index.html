@@ -14,11 +14,10 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script type="module">
-      import config from "./config.js";
+    <script>
       const supabaseClient = supabase.createClient(
-        config.supabaseUrl,
-        config.supabaseAnonKey
+        "https://temkhtebkbcidecterqz.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlbWtodGVia2JjaWRlY3RlcnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5MzQwMDYsImV4cCI6MjA2NDUxMDAwNn0.6lK1CuirhFNRB-RVwMc-QPwirWlPUlNEbCjTPOg7B7E"
       );
     </script>
     <script>
@@ -846,12 +845,11 @@
       };
 
       // Contact Form Handling
-      document.addEventListener("DOMContentLoaded", async function () {
-        // ✅ Supabase client setup using configuration
-        const config = await import("./config.js");
+      document.addEventListener("DOMContentLoaded", function () {
+        // ✅ Supabase client setup — replace with your real project URL and anon key
         const supabaseClient = supabase.createClient(
-          config.supabaseUrl,
-          config.supabaseAnonKey
+          "https://temkhtebkbcidecterqz.supabase.co",
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlbWtodGVia2JjaWRlY3RlcnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5MzQwMDYsImV4cCI6MjA2NDUxMDAwNn0.6lK1CuirhFNRB-RVwMc-QPwirWlPUlNEbCjTPOg7B7E"
         );
 
         document
