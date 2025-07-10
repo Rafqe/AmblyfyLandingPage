@@ -17,6 +17,8 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let activityTimer: NodeJS.Timeout;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -28,10 +30,59 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+
+      // If signed out, clear any activity timers
+      if (!session) {
+        if (activityTimer) clearTimeout(activityTimer);
+      }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Auto-logout after 24 hours of inactivity
+    const resetActivityTimer = () => {
+      if (activityTimer) clearTimeout(activityTimer);
+
+      activityTimer = setTimeout(async () => {
+        if (session) {
+          await supabase.auth.signOut();
+          alert(
+            "You have been logged out due to inactivity for security reasons."
+          );
+        }
+      }, 24 * 60 * 60 * 1000); // 24 hours
+    };
+
+    // Track user activity
+    const activityEvents = [
+      "mousedown",
+      "mousemove",
+      "keypress",
+      "scroll",
+      "touchstart",
+      "click",
+    ];
+
+    const handleActivity = () => {
+      if (session) resetActivityTimer();
+    };
+
+    // Add activity listeners
+    activityEvents.forEach((event) => {
+      document.addEventListener(event, handleActivity, true);
+    });
+
+    // Initialize timer if there's a session
+    if (session) resetActivityTimer();
+
+    return () => {
+      subscription.unsubscribe();
+      if (activityTimer) clearTimeout(activityTimer);
+
+      // Remove activity listeners
+      activityEvents.forEach((event) => {
+        document.removeEventListener(event, handleActivity, true);
+      });
+    };
+  }, [session]);
 
   if (loading) {
     return (

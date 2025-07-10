@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import { supabase } from "../config/supabase";
 import { useNavigate } from "react-router-dom";
+import {
+  sanitizeError,
+  isValidEmail,
+  isValidPassword,
+  globalRateLimiter,
+} from "../utils/security";
 
 interface RegisterForm {
   email: string;
@@ -31,21 +37,22 @@ const LoginPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const navigate = useNavigate();
 
-  // Input validation
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const validatePassword = (password: string): boolean => {
-    return password.length >= 8;
-  };
+  // Input validation using security utilities
+  const validateEmail = isValidEmail;
+  const validatePassword = isValidPassword;
 
   // Registration handler
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setRegStatus("");
+
+    // Rate limiting check
+    if (!globalRateLimiter.canAttempt("register", 3, 5 * 60 * 1000)) {
+      setRegStatus("Too many registration attempts. Please try again later.");
+      setLoading(false);
+      return;
+    }
 
     // Validate inputs
     if (!validateEmail(regForm.email)) {
@@ -55,7 +62,9 @@ const LoginPage: React.FC = () => {
     }
 
     if (!validatePassword(regForm.password)) {
-      setRegStatus("Password must be at least 8 characters long.");
+      setRegStatus(
+        "Password must be at least 8 characters and contain uppercase, lowercase, numbers, and special characters."
+      );
       setLoading(false);
       return;
     }
@@ -67,13 +76,17 @@ const LoginPage: React.FC = () => {
         password: regForm.password,
       });
       if (error) throw error;
+
+      // Reset rate limiter on success
+      globalRateLimiter.reset("register");
+
       setRegStatus(
         "Registration successful! Please check your email to confirm your account."
       );
       setRegForm(initialRegState);
     } catch (err: any) {
-      console.error("Registration error:", err);
-      setRegStatus("Registration failed. Please try again or contact support.");
+      const safeError = sanitizeError(err);
+      setRegStatus(safeError);
     } finally {
       setLoading(false);
     }
@@ -84,6 +97,14 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setLoginStatus("");
+
+    // Rate limiting check
+    const loginKey = `login_${loginForm.email}`;
+    if (!globalRateLimiter.canAttempt(loginKey, 5, 15 * 60 * 1000)) {
+      setLoginStatus("Too many login attempts. Please try again later.");
+      setLoading(false);
+      return;
+    }
 
     // Validate email
     if (!validateEmail(loginForm.email)) {
@@ -98,6 +119,10 @@ const LoginPage: React.FC = () => {
         password: loginForm.password,
       });
       if (error) throw error;
+
+      // Reset rate limiter on success
+      globalRateLimiter.reset(loginKey);
+
       setLoginStatus("Login successful!");
       setLoginForm(initialLoginState);
       // Redirect to dashboard after successful login
@@ -105,10 +130,8 @@ const LoginPage: React.FC = () => {
         navigate("/dashboard");
       }, 500);
     } catch (err: any) {
-      console.error("Login error:", err);
-      setLoginStatus(
-        "Login failed. Please check your credentials and try again."
-      );
+      const safeError = sanitizeError(err);
+      setLoginStatus(safeError);
     } finally {
       setLoading(false);
     }
@@ -290,6 +313,10 @@ const LoginPage: React.FC = () => {
                     required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-cyan focus:border-transparent transition-colors placeholder-gray-400 text-base"
                   />
+                  <div className="text-xs text-gray-500 mt-1">
+                    Must be 8+ characters with letters, numbers, and special
+                    characters
+                  </div>
                 </div>
                 <button
                   type="submit"

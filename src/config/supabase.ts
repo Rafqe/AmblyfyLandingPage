@@ -1,10 +1,40 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl =
-  process.env.REACT_APP_SUPABASE_URL ||
-  "https://temkhtebkbcidecterqz.supabase.co";
-const supabaseAnonKey =
-  process.env.REACT_APP_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlbWtodGVia2JjaWRlY3RlcnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5MzQwMDYsImV4cCI6MjA2NDUxMDAwNn0.6lK1CuirhFNRB-RVwMc-QPwirWlPUlNEbCjTPOg7B7E";
+// Environment variable validation
+if (process.env.NODE_ENV === "development") {
+  console.log("🔍 Supabase config:", {
+    url: process.env.REACT_APP_SUPABASE_URL
+      ? "✅ Loaded from .env"
+      : "⚠️ Using fallback",
+    key: process.env.REACT_APP_SUPABASE_ANON_KEY
+      ? "✅ Loaded from .env"
+      : "⚠️ Using fallback",
+  });
+}
+
+// Validate required environment variables
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "❌ Missing required environment variables:\n" +
+      (!supabaseUrl ? "- REACT_APP_SUPABASE_URL\n" : "") +
+      (!supabaseAnonKey ? "- REACT_APP_SUPABASE_ANON_KEY\n" : "") +
+      "Please create a .env file with these variables."
+  );
+}
+
+// Validate URL format
+try {
+  new URL(supabaseUrl);
+} catch {
+  throw new Error("❌ REACT_APP_SUPABASE_URL must be a valid URL");
+}
+
+// Validate JWT format (basic check)
+if (!supabaseAnonKey.includes(".") || supabaseAnonKey.split(".").length !== 3) {
+  throw new Error("❌ REACT_APP_SUPABASE_ANON_KEY must be a valid JWT token");
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

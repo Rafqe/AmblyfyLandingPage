@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "../config/supabase";
 import { User } from "@supabase/supabase-js";
+import { sanitizeError, isValidPassword } from "../utils/security";
 
 interface SettingsProps {
   user: User | null;
@@ -43,9 +44,7 @@ const Settings: React.FC<SettingsProps> = ({
     return name.trim().length >= 2 && /^[a-zA-Z\s-']+$/.test(name.trim());
   };
 
-  const validatePassword = (password: string): boolean => {
-    return password.length >= 8;
-  };
+  // Remove weak password validation - use isValidPassword from security utils
 
   // Profile update handler
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -97,14 +96,27 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  // Password change handler
+  // Enhanced password validation
+  const validatePasswordStrength = isValidPassword;
+
+  // Password change handler with current password verification
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setStatus("");
 
-    if (!validatePassword(passwordForm.newPassword)) {
-      setStatus("New password must be at least 8 characters long.");
+    // Validate current password is provided
+    if (!passwordForm.currentPassword) {
+      setStatus("Please enter your current password.");
+      setLoading(false);
+      return;
+    }
+
+    // Validate new password strength
+    if (!validatePasswordStrength(passwordForm.newPassword)) {
+      setStatus(
+        "New password must be at least 8 characters and contain uppercase, lowercase, numbers, and special characters."
+      );
       setLoading(false);
       return;
     }
@@ -116,11 +128,28 @@ const Settings: React.FC<SettingsProps> = ({
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      // First, verify current password by attempting to sign in
+      if (!user?.email) {
+        throw new Error("User email not available");
+      }
+
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passwordForm.currentPassword,
+      });
+
+      if (verifyError) {
+        setStatus("Current password is incorrect.");
+        setLoading(false);
+        return;
+      }
+
+      // If verification successful, update password
+      const { error: updateError } = await supabase.auth.updateUser({
         password: passwordForm.newPassword,
       });
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       setStatus("Password updated successfully!");
       setPasswordForm({
@@ -129,8 +158,8 @@ const Settings: React.FC<SettingsProps> = ({
         confirmPassword: "",
       });
     } catch (err: any) {
-      console.error("Password update error:", err);
-      setStatus("Failed to update password. Please try again.");
+      const safeError = sanitizeError(err);
+      setStatus(safeError);
     } finally {
       setLoading(false);
     }
@@ -138,11 +167,13 @@ const Settings: React.FC<SettingsProps> = ({
 
   // Account deletion handler
   const handleDeleteAccount = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete your account? This action cannot be undone."
-      )
-    ) {
+    const confirmText = "DELETE MY ACCOUNT";
+    const userInput = window.prompt(
+      `This action cannot be undone. All your data will be permanently deleted.\n\nTo confirm, please type: ${confirmText}`
+    );
+
+    if (userInput !== confirmText) {
+      setStatus("Account deletion cancelled.");
       return;
     }
 
@@ -150,8 +181,25 @@ const Settings: React.FC<SettingsProps> = ({
     setStatus("");
 
     try {
-      // Delete user data first
+      // Delete user data first (RLS policies ensure only own data is deleted)
       if (user) {
+        // Delete daily logs
+        const { error: logsError } = await supabase
+          .from("daily_logs")
+          .delete()
+          .eq("user_id", user.id);
+
+        if (logsError) throw logsError;
+
+        // Delete user goals
+        const { error: goalsError } = await supabase
+          .from("user_goals")
+          .delete()
+          .eq("user_id", user.id);
+
+        if (goalsError) throw goalsError;
+
+        // Delete user data
         const { error: dataError } = await supabase
           .from("user_data")
           .delete()
@@ -160,18 +208,18 @@ const Settings: React.FC<SettingsProps> = ({
         if (dataError) throw dataError;
       }
 
-      // Delete the user account
-      const { error } = await supabase.auth.admin.deleteUser(user?.id || "");
-
-      if (error) throw error;
-
-      setStatus("Account deleted successfully. You will be logged out.");
+      // Note: We cannot delete the auth user from client-side
+      // This would need to be done via a server-side function
+      // For now, just clear the data and sign out
+      setStatus(
+        "Account data deleted successfully. Please contact support to complete account deletion."
+      );
       setTimeout(() => {
         onLogout();
-      }, 2000);
+      }, 3000);
     } catch (err: any) {
-      console.error("Account deletion error:", err);
-      setStatus("Failed to delete account. Please try again.");
+      const safeError = sanitizeError(err);
+      setStatus(`Failed to delete account data: ${safeError}`);
     } finally {
       setLoading(false);
     }

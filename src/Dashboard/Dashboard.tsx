@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "../config/supabase";
 import Settings from "./Settings";
+import Calendar from "./Calendar";
+import Statistics from "./Statistics";
+import LogEntry from "./LogEntry";
 
 const Dashboard: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -11,12 +14,18 @@ const Dashboard: React.FC = () => {
   const [profileForm, setProfileForm] = useState({ name: "", surname: "" });
   const [profileStatus, setProfileStatus] = useState<string>("");
   const [profileLoading, setProfileLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState<"dashboard" | "settings">(
-    "dashboard"
-  );
+  const [currentPage, setCurrentPage] = useState<
+    "dashboard" | "calendar" | "statistics" | "settings"
+  >("dashboard");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem("darkMode");
-    return saved ? JSON.parse(saved) : false;
+    try {
+      const saved = localStorage.getItem("darkMode");
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      // If localStorage fails or data is corrupted, default to false
+      return false;
+    }
   });
   const navigate = useNavigate();
 
@@ -49,7 +58,10 @@ const Dashboard: React.FC = () => {
             .single();
 
           if (error) {
-            console.error("Error creating profile:", error);
+            // Only log detailed errors in development
+            if (process.env.NODE_ENV === "development") {
+              console.error("Error creating profile:", error);
+            }
           } else {
             profileData = newProfile;
           }
@@ -150,7 +162,10 @@ const Dashboard: React.FC = () => {
         .single();
       setProfile(profileData);
     } catch (err: any) {
-      console.error("Profile update error:", err);
+      // Only log detailed errors in development
+      if (process.env.NODE_ENV === "development") {
+        console.error("Profile update error:", err);
+      }
       setProfileStatus("Failed to update profile. Please try again.");
     } finally {
       setProfileLoading(false);
@@ -164,7 +179,13 @@ const Dashboard: React.FC = () => {
   const handleDarkModeToggle = () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
-    localStorage.setItem("darkMode", JSON.stringify(newDarkMode));
+
+    try {
+      localStorage.setItem("darkMode", JSON.stringify(newDarkMode));
+    } catch {
+      // If localStorage fails, continue without saving preference
+      console.warn("Unable to save dark mode preference");
+    }
   };
 
   // Profile update handler for Settings component
@@ -192,10 +213,9 @@ const Dashboard: React.FC = () => {
       >
         <nav className="container mx-auto flex items-center justify-between py-3 px-4 md:px-8 relative">
           {/* Logo */}
-          <Link
-            to="/dashboard"
-            className="flex items-center space-x-2"
-            replace={false}
+          <button
+            onClick={() => setCurrentPage("dashboard")}
+            className="flex items-center space-x-2 cursor-pointer"
           >
             <img
               src={
@@ -206,12 +226,12 @@ const Dashboard: React.FC = () => {
               alt="Amblyfy"
               className="h-10"
             />
-          </Link>
+          </button>
           {/* Desktop Nav */}
-          <div className="hidden md:flex space-x-2 lg:space-x-4">
+          <div className="hidden md:flex space-x-1 lg:space-x-2 absolute left-1/2 transform -translate-x-1/2">
             <button
               onClick={() => setCurrentPage("dashboard")}
-              className={`font-extrabold transition-colors rounded-md px-3 py-2 text-sm lg:text-base ${
+              className={`font-extrabold transition-colors rounded-md px-2 py-2 text-xs lg:text-sm ${
                 currentPage === "dashboard"
                   ? "text-[#cad76a]"
                   : darkMode
@@ -222,8 +242,32 @@ const Dashboard: React.FC = () => {
               Dashboard
             </button>
             <button
+              onClick={() => setCurrentPage("calendar")}
+              className={`font-extrabold transition-colors rounded-md px-2 py-2 text-xs lg:text-sm ${
+                currentPage === "calendar"
+                  ? "text-[#cad76a]"
+                  : darkMode
+                  ? "text-white hover:text-gray-100"
+                  : "text-gray-700 hover:text-brand-dark-blue"
+              }`}
+            >
+              Calendar
+            </button>
+            <button
+              onClick={() => setCurrentPage("statistics")}
+              className={`font-extrabold transition-colors rounded-md px-2 py-2 text-xs lg:text-sm ${
+                currentPage === "statistics"
+                  ? "text-[#cad76a]"
+                  : darkMode
+                  ? "text-white hover:text-gray-100"
+                  : "text-gray-700 hover:text-brand-dark-blue"
+              }`}
+            >
+              Statistics
+            </button>
+            <button
               onClick={() => setCurrentPage("settings")}
-              className={`font-extrabold transition-colors rounded-md px-3 py-2 text-sm lg:text-base ${
+              className={`font-extrabold transition-colors rounded-md px-2 py-2 text-xs lg:text-sm ${
                 currentPage === "settings"
                   ? "text-[#cad76a]"
                   : darkMode
@@ -252,7 +296,7 @@ const Dashboard: React.FC = () => {
             </div>
             <button
               onClick={handleLogout}
-              className={`font-bold px-4 py-2 rounded-md shadow transition-colors text-sm lg:text-base ${
+              className={`font-medium px-3 py-1.5 rounded-md shadow-sm transition-colors text-xs lg:text-sm ${
                 darkMode
                   ? "bg-gray-100 text-gray-800 hover:bg-white"
                   : "bg-brand-dark-blue text-white hover:bg-brand-cyan"
@@ -307,6 +351,36 @@ const Dashboard: React.FC = () => {
               </button>
               <button
                 onClick={() => {
+                  setCurrentPage("calendar");
+                  setMobileMenuOpen(false);
+                }}
+                className={`font-extrabold transition-colors rounded-md px-3 py-2 text-base ${
+                  currentPage === "calendar"
+                    ? "text-[#cad76a]"
+                    : darkMode
+                    ? "text-white hover:text-gray-100"
+                    : "text-gray-700 hover:text-brand-dark-blue"
+                }`}
+              >
+                Calendar
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentPage("statistics");
+                  setMobileMenuOpen(false);
+                }}
+                className={`font-extrabold transition-colors rounded-md px-3 py-2 text-base ${
+                  currentPage === "statistics"
+                    ? "text-[#cad76a]"
+                    : darkMode
+                    ? "text-white hover:text-gray-100"
+                    : "text-gray-700 hover:text-brand-dark-blue"
+                }`}
+              >
+                Statistics
+              </button>
+              <button
+                onClick={() => {
                   setCurrentPage("settings");
                   setMobileMenuOpen(false);
                 }}
@@ -336,7 +410,7 @@ const Dashboard: React.FC = () => {
               </div>
               <button
                 onClick={handleLogout}
-                className={`w-full font-bold px-4 py-2 rounded-md shadow transition-colors mt-2 ${
+                className={`w-full font-medium px-3 py-1.5 rounded-md shadow-sm transition-colors mt-2 ${
                   darkMode
                     ? "bg-gray-100 text-gray-800 hover:bg-white"
                     : "bg-brand-dark-blue text-white hover:bg-brand-cyan"
@@ -359,6 +433,34 @@ const Dashboard: React.FC = () => {
             darkMode={darkMode}
             onDarkModeToggle={handleDarkModeToggle}
           />
+        ) : currentPage === "calendar" ? (
+          <div className="flex items-start justify-center w-full m-0 p-0">
+            <div
+              className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
+                darkMode ? "bg-gray-800" : "bg-white"
+              }`}
+            >
+              <Calendar
+                user={user}
+                darkMode={darkMode}
+                key={`calendar-${refreshKey}`}
+              />
+            </div>
+          </div>
+        ) : currentPage === "statistics" ? (
+          <div className="flex items-start justify-center w-full m-0 p-0">
+            <div
+              className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
+                darkMode ? "bg-gray-800" : "bg-white"
+              }`}
+            >
+              <Statistics
+                user={user}
+                darkMode={darkMode}
+                key={`statistics-${refreshKey}`}
+              />
+            </div>
+          </div>
         ) : (
           <div className="flex items-start justify-center w-full m-0 p-0">
             {needsProfile ? (
@@ -471,50 +573,72 @@ const Dashboard: React.FC = () => {
                   This is your personal space. Here you will find your stats,
                   progress, and more features coming soon!
                 </p>
-                <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                  <div className="bg-gradient-to-b from-brand-cyan to-brand-light-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full">
-                    <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                      🎯
-                    </span>
-                    <span className="text-base sm:text-lg font-semibold text-white mb-1">
-                      Your Progress
-                    </span>
-                    <span className="text-white opacity-80 text-xs sm:text-sm">
-                      Coming soon
-                    </span>
-                  </div>
-                  <div className="bg-gradient-to-b from-brand-dark-green to-brand-pale-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full">
-                    <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                      📊
-                    </span>
-                    <span className="text-base sm:text-lg font-semibold text-white mb-1">
-                      Statistics
-                    </span>
-                    <span className="text-white opacity-80 text-xs sm:text-sm">
-                      Coming soon
-                    </span>
-                  </div>
-                  <div className="bg-gradient-to-b from-brand-dark-blue to-brand-cyan rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full">
-                    <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                      📝
-                    </span>
-                    <span className="text-base sm:text-lg font-semibold text-white mb-1">
-                      Notes & Reminders
-                    </span>
-                    <span className="text-white opacity-80 text-xs sm:text-sm">
-                      Coming soon
-                    </span>
-                  </div>
-                  <div className="bg-gradient-to-b from-brand-yellow to-brand-pale-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full">
-                    <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                      ⚙️
-                    </span>
-                    <span className="text-base sm:text-lg font-semibold text-white mb-1">
-                      Settings
-                    </span>
-                    <span className="text-white opacity-80 text-xs sm:text-sm">
-                      Coming soon
-                    </span>
+                <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Log Entry Component */}
+                  <LogEntry
+                    user={user}
+                    darkMode={darkMode}
+                    onLogAdded={() => {
+                      // Force refresh of statistics and calendar when log is added
+                      setRefreshKey((prev) => prev + 1);
+                    }}
+                  />
+
+                  {/* Quick Actions Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setCurrentPage("statistics")}
+                      className="bg-gradient-to-b from-brand-cyan to-brand-light-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full"
+                    >
+                      <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                        📊
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-white mb-1">
+                        View Statistics
+                      </span>
+                      <span className="text-white opacity-80 text-xs sm:text-sm">
+                        Track your progress
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage("calendar")}
+                      className="bg-gradient-to-b from-brand-dark-green to-brand-pale-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full"
+                    >
+                      <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                        📅
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-white mb-1">
+                        Activity Calendar
+                      </span>
+                      <span className="text-white opacity-80 text-xs sm:text-sm">
+                        Monthly view
+                      </span>
+                    </button>
+                    <div className="bg-gradient-to-b from-brand-dark-blue to-brand-cyan rounded-xl shadow-lg p-5 flex flex-col items-center justify-center min-h-[120px] w-full opacity-60">
+                      <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                        📝
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-white mb-1">
+                        Notes & Reminders
+                      </span>
+                      <span className="text-white opacity-80 text-xs sm:text-sm">
+                        Coming soon
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage("settings")}
+                      className="bg-gradient-to-b from-brand-yellow to-brand-pale-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full"
+                    >
+                      <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                        ⚙️
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-white mb-1">
+                        Settings
+                      </span>
+                      <span className="text-white opacity-80 text-xs sm:text-sm">
+                        Manage account
+                      </span>
+                    </button>
                   </div>
                 </div>
               </div>
