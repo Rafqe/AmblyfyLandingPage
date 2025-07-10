@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  "https://temkhtebkbcidecterqz.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlbWtodGVia2JjaWRlY3RlcnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5MzQwMDYsImV4cCI6MjA2NDUxMDAwNn0.6lK1CuirhFNRB-RVwMc-QPwirWlPUlNEbCjTPOg7B7E"
-);
+import { supabase } from "./config/supabase";
 
 const NAVBAR_HEIGHT = 80;
 
@@ -88,7 +83,8 @@ const LandingPage: React.FC = () => {
       setFormLoading(false);
       return;
     }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactForm.email)) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactForm.email.trim())) {
       setFormStatus("Please enter a valid email address.");
       setFormLoading(false);
       return;
@@ -101,20 +97,22 @@ const LandingPage: React.FC = () => {
     try {
       const { error } = await supabase.from("messages").insert([
         {
-          name: contactForm.name,
-          email: contactForm.email,
-          message: contactForm.message,
+          name: contactForm.name.trim(),
+          email: contactForm.email.trim().toLowerCase(),
+          message: contactForm.message.trim(),
           created_at: new Date().toISOString(),
         },
       ]);
       if (error) {
-        setFormStatus("Error: " + error.message);
+        console.error("Contact form error:", error);
+        setFormStatus("Failed to send message. Please try again later.");
       } else {
         setFormStatus("Message sent successfully! We'll get back to you soon.");
         setContactForm({ name: "", email: "", message: "" });
       }
     } catch (err: any) {
-      setFormStatus(`Failed to send message: ${err.message}`);
+      console.error("Contact form exception:", err);
+      setFormStatus("Failed to send message. Please try again later.");
     } finally {
       setFormLoading(false);
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "../config/supabase";
 
@@ -26,11 +26,36 @@ const Dashboard: React.FC = () => {
       const { data } = await supabase.auth.getUser();
       if (data?.user) {
         setUser(data.user);
-        const { data: profileData } = await supabase
+
+        // Try to get existing profile
+        let { data: profileData } = await supabase
           .from("user_data")
           .select("name, surname, account_type")
           .eq("user_id", data.user.id)
           .single();
+
+        // If no profile exists, create one
+        if (!profileData) {
+          const { data: newProfile, error } = await supabase
+            .from("user_data")
+            .insert([
+              {
+                user_id: data.user.id,
+                name: null,
+                surname: null,
+                account_type: "user",
+              },
+            ])
+            .select("name, surname, account_type")
+            .single();
+
+          if (error) {
+            console.error("Error creating profile:", error);
+          } else {
+            profileData = newProfile;
+          }
+        }
+
         setProfile(profileData);
         if (profileData) {
           setProfileForm({
@@ -52,10 +77,10 @@ const Dashboard: React.FC = () => {
 
   // Helper for avatar/initials
   const getInitials = () => {
-    if (profileForm.name && profileForm.surname) {
+    if (profile?.name && profile?.surname) {
       return (
-        profileForm.name.charAt(0).toUpperCase() +
-        profileForm.surname.charAt(0).toUpperCase()
+        profile.name.charAt(0).toUpperCase() +
+        profile.surname.charAt(0).toUpperCase()
       );
     }
     if (user?.email) {
@@ -94,14 +119,29 @@ const Dashboard: React.FC = () => {
 
     try {
       if (!user) throw new Error("No user");
-      const { error } = await supabase
+
+      // Try to update existing profile, or create new one if it doesn't exist
+      let { error } = await supabase
         .from("user_data")
         .update({
           name: profileForm.name.trim(),
           surname: profileForm.surname.trim(),
         })
         .eq("user_id", user.id);
-      if (error) throw error;
+
+      // If update fails (profile doesn't exist), create new profile
+      if (error) {
+        const { error: insertError } = await supabase.from("user_data").insert([
+          {
+            user_id: user.id,
+            name: profileForm.name.trim(),
+            surname: profileForm.surname.trim(),
+            account_type: "user",
+          },
+        ]);
+        if (insertError) throw insertError;
+      }
+
       setProfileStatus("Profile updated successfully!");
       // Reload profile
       const { data: profileData } = await supabase
@@ -127,23 +167,23 @@ const Dashboard: React.FC = () => {
       <header className="bg-white shadow-md w-full z-50 top-0">
         <nav className="container mx-auto flex items-center justify-between py-3 px-4 md:px-8 relative">
           {/* Logo */}
-          <a href="/dashboard" className="flex items-center space-x-2">
+          <Link to="/dashboard" className="flex items-center space-x-2">
             <img
               src="/assets/Amblify_logo_zilsfix.png"
               alt="Amblyfy"
               className="h-10"
             />
-          </a>
+          </Link>
           {/* Desktop Nav */}
           <div className="hidden md:flex space-x-2 lg:space-x-4">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.name}
-                href={link.href}
+                to={link.href}
                 className="text-gray-700 hover:text-brand-dark-blue font-medium transition-colors rounded-md px-3 py-2 text-sm lg:text-base"
               >
                 {link.name}
-              </a>
+              </Link>
             ))}
           </div>
           {/* User Info & Logout */}
@@ -153,8 +193,8 @@ const Dashboard: React.FC = () => {
                 {getInitials()}
               </div>
               <span className="text-brand-dark-blue font-semibold text-sm lg:text-base">
-                {profileForm.name && profileForm.surname
-                  ? `${profileForm.name} ${profileForm.surname}`
+                {profile?.name && profile?.surname
+                  ? `${profile.name} ${profile.surname}`
                   : user?.email}
               </span>
             </div>
@@ -189,22 +229,22 @@ const Dashboard: React.FC = () => {
           {mobileMenuOpen && (
             <div className="absolute top-full left-0 w-full bg-white shadow-lg rounded-b-xl py-4 px-4 flex flex-col space-y-2 md:hidden animate-fade-in z-50">
               {navLinks.map((link) => (
-                <a
+                <Link
                   key={link.name}
-                  href={link.href}
+                  to={link.href}
                   className="text-gray-700 hover:text-brand-dark-blue font-medium transition-colors rounded-md px-3 py-2 text-base"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {link.name}
-                </a>
+                </Link>
               ))}
               <div className="flex items-center space-x-2 mt-2">
                 <div className="w-9 h-9 rounded-full bg-brand-cyan flex items-center justify-center text-white font-bold text-lg shadow">
                   {getInitials()}
                 </div>
                 <span className="text-brand-dark-blue font-semibold text-base">
-                  {profileForm.name && profileForm.surname
-                    ? `${profileForm.name} ${profileForm.surname}`
+                  {profile?.name && profile?.surname
+                    ? `${profile.name} ${profile.surname}`
                     : user?.email}
                 </span>
               </div>
@@ -265,7 +305,7 @@ const Dashboard: React.FC = () => {
               <button
                 type="submit"
                 disabled={profileLoading}
-                className="w-full bg-gradient-to-r from-brand-dark-blue to-brand-cyan text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                className="w-full bg-gradient-to-r from-brand-dark-blue to-brand-cyan text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 ease-out transform-gpu hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed text-base"
               >
                 {profileLoading ? "Saving..." : "Save Profile"}
               </button>
@@ -292,7 +332,7 @@ const Dashboard: React.FC = () => {
               progress, and more features coming soon!
             </p>
             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              <div className="bg-gradient-to-b from-brand-cyan to-brand-light-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 min-h-[120px] w-full">
+              <div className="bg-gradient-to-b from-brand-cyan to-brand-light-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full">
                 <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
                   🎯
                 </span>
@@ -303,7 +343,7 @@ const Dashboard: React.FC = () => {
                   Coming soon
                 </span>
               </div>
-              <div className="bg-gradient-to-b from-brand-dark-green to-brand-pale-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 min-h-[120px] w-full">
+              <div className="bg-gradient-to-b from-brand-dark-green to-brand-pale-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full">
                 <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
                   📊
                 </span>
@@ -314,7 +354,7 @@ const Dashboard: React.FC = () => {
                   Coming soon
                 </span>
               </div>
-              <div className="bg-gradient-to-b from-brand-dark-blue to-brand-cyan rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 min-h-[120px] w-full">
+              <div className="bg-gradient-to-b from-brand-dark-blue to-brand-cyan rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full">
                 <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
                   📝
                 </span>
@@ -325,7 +365,7 @@ const Dashboard: React.FC = () => {
                   Coming soon
                 </span>
               </div>
-              <div className="bg-gradient-to-b from-brand-yellow to-brand-pale-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-transform duration-200 min-h-[120px] w-full">
+              <div className="bg-gradient-to-b from-brand-yellow to-brand-pale-green rounded-xl shadow-lg p-5 flex flex-col items-center justify-center hover:scale-105 transition-all duration-300 ease-out transform-gpu min-h-[120px] w-full">
                 <span className="text-2xl sm:text-3xl font-bold text-white mb-2">
                   ⚙️
                 </span>
