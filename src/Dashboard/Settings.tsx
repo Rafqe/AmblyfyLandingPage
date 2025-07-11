@@ -115,7 +115,7 @@ const Settings: React.FC<SettingsProps> = ({
     // Validate new password strength
     if (!validatePasswordStrength(passwordForm.newPassword)) {
       setStatus(
-        "New password must be at least 8 characters and contain uppercase, lowercase, numbers, and special characters."
+        "New password must be at least 6 characters and contain at least one number."
       );
       setLoading(false);
       return;

@@ -63,7 +63,7 @@ const LoginPage: React.FC = () => {
 
     if (!validatePassword(regForm.password)) {
       setRegStatus(
-        "Password must be at least 8 characters and contain uppercase, lowercase, numbers, and special characters."
+        "Password must be at least 8 characters and contain at least one number."
       );
       setLoading(false);
       return;

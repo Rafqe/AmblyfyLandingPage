@@ -8,12 +8,8 @@ This document outlines the security measures implemented in the Amblyfy applicat
 
 ### Password Requirements
 
-- Minimum 8 characters
-- Must contain:
-  - Uppercase letters (A-Z)
-  - Lowercase letters (a-z)
-  - Numbers (0-9)
-  - Special characters (!@#$%^&\*(),.?":{}|<>)
+- Minimum 6 characters
+- Must contain at least one number (0-9)
 
 ### Rate Limiting
 

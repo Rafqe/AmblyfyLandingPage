@@ -18,7 +18,8 @@ export const sanitizeError = (error: any): string => {
     "Too many requests": "Too many attempts. Please try again later.",
     "User not found": "Invalid email or password.",
     "Invalid email": "Please enter a valid email address.",
-    "Weak password": "Password does not meet security requirements.",
+    "Weak password":
+      "Password must be at least 6 characters and contain at least one number.",
 
     // Database errors
     "duplicate key value": "This record already exists.",
@@ -71,17 +72,12 @@ export const isValidEmail = (email: string): boolean => {
 };
 
 /**
- * Validates password strength with enhanced security requirements
+ * Validates password strength - requires only a number
  */
 export const isValidPassword = (password: string): boolean => {
-  if (!password || password.length < 8 || password.length > 128) return false;
+  if (!password || password.length < 6 || password.length > 128) return false;
 
-  return (
-    /[a-z]/.test(password) && // lowercase letter
-    /[A-Z]/.test(password) && // uppercase letter
-    /[0-9]/.test(password) && // number
-    /[!@#$%^&*(),.?":{}|<>]/.test(password) // special character
-  );
+  return /[0-9]/.test(password); // must contain at least one number
 };
 
 /**
