@@ -314,8 +314,7 @@ const LoginPage: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-cyan focus:border-transparent transition-colors placeholder-gray-400 text-base"
                   />
                   <div className="text-xs text-gray-500 mt-1">
-                    Must be 8+ characters with letters, numbers, and special
-                    characters
+                    Must be 8+ characters with at least one number
                   </div>
                 </div>
                 <button
