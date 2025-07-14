@@ -26,10 +26,14 @@ const Settings: React.FC<SettingsProps> = ({
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>("");
 
+  // Check if user is a doctor
+  const isDoctor = profile?.account_type === "doctor";
+
   // Profile form state
   const [profileForm, setProfileForm] = useState({
     name: profile?.name || "",
     surname: profile?.surname || "",
+    info: profile?.info || "",
   });
 
   // Password change form state
@@ -69,12 +73,20 @@ const Settings: React.FC<SettingsProps> = ({
     try {
       if (!user) throw new Error("No user");
 
+      // Prepare update data
+      const updateData: any = {
+        name: profileForm.name.trim(),
+        surname: profileForm.surname.trim(),
+      };
+
+      // Only include info field if user is a doctor
+      if (isDoctor) {
+        updateData.info = profileForm.info.trim();
+      }
+
       const { error } = await supabase
         .from("user_data")
-        .update({
-          name: profileForm.name.trim(),
-          surname: profileForm.surname.trim(),
-        })
+        .update(updateData)
         .eq("user_id", user.id);
 
       if (error) throw error;
@@ -86,6 +98,7 @@ const Settings: React.FC<SettingsProps> = ({
         ...profile,
         name: profileForm.name.trim(),
         surname: profileForm.surname.trim(),
+        ...(isDoctor && { info: profileForm.info.trim() }),
       };
       onProfileUpdate(updatedProfile);
     } catch (err: any) {
@@ -99,20 +112,17 @@ const Settings: React.FC<SettingsProps> = ({
   // Enhanced password validation
   const validatePasswordStrength = isValidPassword;
 
-  // Password change handler with current password verification
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setStatus("");
 
-    // Validate current password is provided
     if (!passwordForm.currentPassword) {
-      setStatus("Please enter your current password.");
+      setStatus("Current password is required.");
       setLoading(false);
       return;
     }
 
-    // Validate new password strength
     if (!validatePasswordStrength(passwordForm.newPassword)) {
       setStatus(
         "New password must be at least 8 characters and contain at least one number."
@@ -127,29 +137,31 @@ const Settings: React.FC<SettingsProps> = ({
       return;
     }
 
-    try {
-      // First, verify current password by attempting to sign in
-      if (!user?.email) {
-        throw new Error("User email not available");
-      }
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      setStatus("New password must be different from current password.");
+      setLoading(false);
+      return;
+    }
 
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user.email,
+    try {
+      // Verify current password by trying to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || "",
         password: passwordForm.currentPassword,
       });
 
-      if (verifyError) {
+      if (signInError) {
         setStatus("Current password is incorrect.");
         setLoading(false);
         return;
       }
 
-      // If verification successful, update password
-      const { error: updateError } = await supabase.auth.updateUser({
+      // Update password
+      const { error } = await supabase.auth.updateUser({
         password: passwordForm.newPassword,
       });
 
-      if (updateError) throw updateError;
+      if (error) throw error;
 
       setStatus("Password updated successfully!");
       setPasswordForm({
@@ -159,7 +171,7 @@ const Settings: React.FC<SettingsProps> = ({
       });
     } catch (err: any) {
       const safeError = sanitizeError(err);
-      setStatus(safeError);
+      setStatus(`Failed to update password: ${safeError}`);
     } finally {
       setLoading(false);
     }
@@ -181,45 +193,28 @@ const Settings: React.FC<SettingsProps> = ({
     setStatus("");
 
     try {
-      // Delete user data first (RLS policies ensure only own data is deleted)
-      if (user) {
-        // Delete daily logs
-        const { error: logsError } = await supabase
-          .from("daily_logs")
-          .delete()
-          .eq("user_id", user.id);
+      // Use the server-side function to completely delete the user account
+      // This deletes all data AND the auth record
+      const { data, error } = await supabase.rpc("delete_user_completely");
 
-        if (logsError) throw logsError;
+      if (error) throw error;
 
-        // Delete user goals
-        const { error: goalsError } = await supabase
-          .from("user_goals")
-          .delete()
-          .eq("user_id", user.id);
-
-        if (goalsError) throw goalsError;
-
-        // Delete user data
-        const { error: dataError } = await supabase
-          .from("user_data")
-          .delete()
-          .eq("user_id", user.id);
-
-        if (dataError) throw dataError;
+      // Check the response from the function
+      if (data && data.success) {
+        setStatus(
+          "Account completely deleted. You will be signed out in 3 seconds."
+        );
+        setTimeout(() => {
+          onLogout();
+        }, 3000);
+      } else {
+        // Handle function-level errors
+        const errorMessage = data?.message || "Unknown error occurred";
+        setStatus(`Account deletion failed: ${errorMessage}`);
       }
-
-      // Note: We cannot delete the auth user from client-side
-      // This would need to be done via a server-side function
-      // For now, just clear the data and sign out
-      setStatus(
-        "Account data deleted successfully. Please contact support to complete account deletion."
-      );
-      setTimeout(() => {
-        onLogout();
-      }, 3000);
     } catch (err: any) {
       const safeError = sanitizeError(err);
-      setStatus(`Failed to delete account data: ${safeError}`);
+      setStatus(`Failed to delete account: ${safeError}`);
     } finally {
       setLoading(false);
     }
@@ -233,7 +228,7 @@ const Settings: React.FC<SettingsProps> = ({
   ];
 
   return (
-    <div className="flex items-start justify-center w-full m-0 p-0">
+    <div className="flex items-center justify-center w-full">
       {/* Main Settings Card */}
       <div
         // Card height now accounts for navbar (64px). Adjust 64px if navbar height changes.
@@ -370,6 +365,42 @@ const Settings: React.FC<SettingsProps> = ({
                     Email cannot be changed
                   </p>
                 </div>
+
+                {/* Professional Info Field - Only for Doctors */}
+                {isDoctor && (
+                  <div>
+                    <label
+                      htmlFor="settings-info"
+                      className={`block text-sm font-medium mb-2 ${
+                        darkMode ? "text-gray-300" : "text-gray-700"
+                      }`}
+                    >
+                      Professional Information
+                    </label>
+                    <textarea
+                      id="settings-info"
+                      value={profileForm.info}
+                      onChange={(e) =>
+                        setProfileForm({ ...profileForm, info: e.target.value })
+                      }
+                      rows={4}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-cyan focus:border-transparent transition-colors resize-vertical ${
+                        darkMode
+                          ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                          : "border-gray-300"
+                      }`}
+                      placeholder="Add your workplace, specialization, credentials, or other professional information..."
+                    />
+                    <p
+                      className={`text-sm mt-1 ${
+                        darkMode ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    >
+                      This information will be visible to your patients
+                    </p>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -389,12 +420,12 @@ const Settings: React.FC<SettingsProps> = ({
                   darkMode ? "text-white" : "text-brand-dark-blue"
                 }`}
               >
-                Security Settings
+                Change Password
               </h2>
               <form onSubmit={handlePasswordChange} className="space-y-4">
                 <div>
                   <label
-                    htmlFor="current-password"
+                    htmlFor="settings-current-password"
                     className={`block text-sm font-medium mb-2 ${
                       darkMode ? "text-gray-300" : "text-gray-700"
                     }`}
@@ -402,7 +433,7 @@ const Settings: React.FC<SettingsProps> = ({
                     Current Password
                   </label>
                   <input
-                    id="current-password"
+                    id="settings-current-password"
                     type="password"
                     value={passwordForm.currentPassword}
                     onChange={(e) =>
@@ -421,7 +452,7 @@ const Settings: React.FC<SettingsProps> = ({
                 </div>
                 <div>
                   <label
-                    htmlFor="new-password"
+                    htmlFor="settings-new-password"
                     className={`block text-sm font-medium mb-2 ${
                       darkMode ? "text-gray-300" : "text-gray-700"
                     }`}
@@ -429,7 +460,7 @@ const Settings: React.FC<SettingsProps> = ({
                     New Password
                   </label>
                   <input
-                    id="new-password"
+                    id="settings-new-password"
                     type="password"
                     value={passwordForm.newPassword}
                     onChange={(e) =>
@@ -445,10 +476,17 @@ const Settings: React.FC<SettingsProps> = ({
                     }`}
                     placeholder="Enter your new password"
                   />
+                  <p
+                    className={`text-sm mt-1 ${
+                      darkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
+                    Must be at least 8 characters with at least one number
+                  </p>
                 </div>
                 <div>
                   <label
-                    htmlFor="confirm-password"
+                    htmlFor="settings-confirm-password"
                     className={`block text-sm font-medium mb-2 ${
                       darkMode ? "text-gray-300" : "text-gray-700"
                     }`}
@@ -456,7 +494,7 @@ const Settings: React.FC<SettingsProps> = ({
                     Confirm New Password
                   </label>
                   <input
-                    id="confirm-password"
+                    id="settings-confirm-password"
                     type="password"
                     value={passwordForm.confirmPassword}
                     onChange={(e) =>
@@ -478,7 +516,7 @@ const Settings: React.FC<SettingsProps> = ({
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-brand-dark-blue to-brand-cyan text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 ease-out transform-gpu hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? "Updating..." : "Change Password"}
+                  {loading ? "Updating..." : "Update Password"}
                 </button>
               </form>
             </div>
@@ -492,66 +530,37 @@ const Settings: React.FC<SettingsProps> = ({
                   darkMode ? "text-white" : "text-brand-dark-blue"
                 }`}
               >
-                Appearance Settings
+                Theme Preferences
               </h2>
-              <div className="space-y-4">
-                <div
-                  className={`flex items-center justify-between p-4 border rounded-lg ${
-                    darkMode ? "border-gray-600" : "border-gray-200"
-                  }`}
-                >
-                  <div>
-                    <h3
-                      className={`font-medium ${
-                        darkMode ? "text-white" : "text-gray-900"
-                      }`}
-                    >
-                      Dark Mode
-                    </h3>
-                    <p
-                      className={`text-sm ${
-                        darkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    >
-                      Switch between light and dark themes
-                    </p>
-                  </div>
-                  <button
-                    onClick={onDarkModeToggle}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      darkMode ? "bg-brand-cyan" : "bg-gray-200"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        darkMode ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
-                <div
-                  className={`p-4 rounded-lg ${
-                    darkMode ? "bg-gray-700" : "bg-gray-50"
-                  }`}
-                >
-                  <h4
-                    className={`font-medium mb-2 ${
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3
+                    className={`font-medium ${
                       darkMode ? "text-white" : "text-gray-900"
                     }`}
                   >
-                    Preview
-                  </h4>
+                    Dark Mode
+                  </h3>
                   <p
                     className={`text-sm ${
-                      darkMode ? "text-gray-300" : "text-gray-600"
+                      darkMode ? "text-gray-400" : "text-gray-500"
                     }`}
                   >
-                    Current theme:{" "}
-                    <span className="font-medium">
-                      {darkMode ? "Dark Mode" : "Light Mode"}
-                    </span>
+                    Toggle between light and dark theme
                   </p>
                 </div>
+                <button
+                  onClick={onDarkModeToggle}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    darkMode ? "bg-brand-cyan" : "bg-gray-200"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      darkMode ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           )}
@@ -559,21 +568,37 @@ const Settings: React.FC<SettingsProps> = ({
           {/* Danger Zone Tab */}
           {activeTab === "danger" && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-red-600">
+              <h2
+                className={`text-xl font-semibold ${
+                  darkMode ? "text-white" : "text-brand-dark-blue"
+                }`}
+              >
                 Danger Zone
               </h2>
-              <div className="p-6 border border-red-200 rounded-lg bg-red-50">
-                <h3 className="font-medium text-red-900 mb-2">
+              <div
+                className={`p-4 border-2 border-dashed border-red-300 rounded-lg ${
+                  darkMode ? "bg-red-900/20" : "bg-red-50"
+                }`}
+              >
+                <h3
+                  className={`font-semibold text-red-600 ${
+                    darkMode ? "text-red-400" : ""
+                  }`}
+                >
                   Delete Account
                 </h3>
-                <p className="text-sm text-red-700 mb-4">
-                  Once you delete your account, there is no going back. Please
-                  be certain.
+                <p
+                  className={`text-sm mt-1 mb-4 ${
+                    darkMode ? "text-gray-300" : "text-gray-600"
+                  }`}
+                >
+                  Permanently delete your account and all associated data. This
+                  action cannot be undone.
                 </p>
                 <button
                   onClick={handleDeleteAccount}
                   disabled={loading}
-                  className="bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Deleting..." : "Delete Account"}
                 </button>
@@ -581,20 +606,24 @@ const Settings: React.FC<SettingsProps> = ({
             </div>
           )}
         </div>
-      </div>
 
-      {/* Status Messages */}
-      {status && (
-        <div
-          className={`p-4 rounded-lg text-sm font-medium ${
-            status.includes("successfully")
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
-        >
-          {status}
-        </div>
-      )}
+        {/* Status Message */}
+        {status && (
+          <div
+            className={`p-3 rounded-lg text-sm font-medium ${
+              status.includes("successfully")
+                ? darkMode
+                  ? "bg-green-900 text-green-300 border border-green-700"
+                  : "bg-green-50 text-green-800 border border-green-200"
+                : darkMode
+                ? "bg-red-900 text-red-300 border border-red-700"
+                : "bg-red-50 text-red-800 border border-red-200"
+            }`}
+          >
+            {status}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

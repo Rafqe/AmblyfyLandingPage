@@ -6,6 +6,7 @@ import {
   isValidEmail,
   isValidPassword,
   globalRateLimiter,
+  checkEmailExists,
 } from "../utils/security";
 
 interface RegisterForm {
@@ -35,6 +36,9 @@ const LoginPage: React.FC = () => {
   const [loginStatus, setLoginStatus] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [showForgotPassword, setShowForgotPassword] = useState<boolean>(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState<string>("");
+  const [forgotPasswordStatus, setForgotPasswordStatus] = useState<string>("");
   const navigate = useNavigate();
 
   // Input validation using security utilities
@@ -48,8 +52,10 @@ const LoginPage: React.FC = () => {
     setRegStatus("");
 
     // Rate limiting check
-    if (!globalRateLimiter.canAttempt("register", 3, 5 * 60 * 1000)) {
-      setRegStatus("Too many registration attempts. Please try again later.");
+    if (!globalRateLimiter.canAttempt("register", 10, 10 * 60 * 1000)) {
+      setRegStatus(
+        "Too many registration attempts. Please try again in 10 minutes."
+      );
       setLoading(false);
       return;
     }
@@ -69,12 +75,25 @@ const LoginPage: React.FC = () => {
       return;
     }
 
+    const email = regForm.email.trim().toLowerCase();
+
     try {
-      // 1. Register user in Supabase Auth
+      // First, check if email already exists
+      const emailExists = await checkEmailExists(email);
+
+      if (emailExists) {
+        setRegStatus(
+          "An account with this email already exists. Please sign in instead. If you forgot your password, use the 'Forgot Password' option below."
+        );
+        return;
+      }
+
+      // Email doesn't exist, proceed with registration
       const { error } = await supabase.auth.signUp({
-        email: regForm.email.trim().toLowerCase(),
+        email: email,
         password: regForm.password,
       });
+
       if (error) throw error;
 
       // Reset rate limiter on success
@@ -85,8 +104,15 @@ const LoginPage: React.FC = () => {
       );
       setRegForm(initialRegState);
     } catch (err: any) {
-      const safeError = sanitizeError(err);
-      setRegStatus(safeError);
+      // Handle specific error cases
+      if (err.message && err.message.includes("User already registered")) {
+        setRegStatus(
+          "An account with this email already exists. Please sign in instead or reset your password if needed."
+        );
+      } else {
+        const safeError = sanitizeError(err);
+        setRegStatus(safeError);
+      }
     } finally {
       setLoading(false);
     }
@@ -132,6 +158,41 @@ const LoginPage: React.FC = () => {
     } catch (err: any) {
       const safeError = sanitizeError(err);
       setLoginStatus(safeError);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot password handler
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setForgotPasswordStatus("");
+
+    // Validate email
+    if (!validateEmail(forgotPasswordEmail)) {
+      setForgotPasswordStatus("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        forgotPasswordEmail.trim().toLowerCase(),
+        {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }
+      );
+
+      if (error) throw error;
+
+      setForgotPasswordStatus(
+        "Password reset instructions have been sent to your email address."
+      );
+      setForgotPasswordEmail("");
+    } catch (err: any) {
+      const safeError = sanitizeError(err);
+      setForgotPasswordStatus(safeError);
     } finally {
       setLoading(false);
     }
@@ -269,6 +330,17 @@ const LoginPage: React.FC = () => {
                   </div>
                 )}
               </form>
+
+              {/* Forgot Password Link */}
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-brand-cyan hover:text-brand-dark-blue transition-colors underline"
+                >
+                  Forgot your password?
+                </button>
+              </div>
             </div>
           )}
 
@@ -375,6 +447,81 @@ const LoginPage: React.FC = () => {
             ← Back to Home
           </a>
         </div>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-brand-dark-blue">
+                  Reset Password
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setForgotPasswordStatus("");
+                    setForgotPasswordEmail("");
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="forgot-email"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Email Address
+                  </label>
+                  <input
+                    id="forgot-email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-cyan focus:border-transparent transition-colors"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-brand-dark-blue to-brand-cyan text-white font-medium py-2 px-4 rounded-lg hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Sending..." : "Send Reset Instructions"}
+                </button>
+
+                {forgotPasswordStatus && (
+                  <div
+                    className={`p-3 rounded-lg text-sm font-medium ${
+                      forgotPasswordStatus.includes("sent")
+                        ? "bg-green-50 text-green-800 border border-green-200"
+                        : "bg-red-50 text-red-800 border border-red-200"
+                    }`}
+                  >
+                    {forgotPasswordStatus}
+                  </div>
+                )}
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

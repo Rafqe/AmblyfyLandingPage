@@ -51,17 +51,19 @@ const LogEntry: React.FC<LogEntryProps> = ({ user, darkMode, onLogAdded }) => {
     }
 
     // Check date is not more than 5 days ago
-    const selectedDate = new Date(logForm.date);
-    const today = new Date();
-    const fiveDaysAgo = new Date(today);
-    fiveDaysAgo.setDate(today.getDate() - 5);
+    // Convert both dates to local date strings to avoid timezone issues
+    const selectedDateStr = logForm.date;
+    const todayStr = getLocalDateString();
+    const fiveDaysAgoStr = getLocalDateString(
+      new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+    );
 
-    if (selectedDate < fiveDaysAgo) {
+    if (selectedDateStr < fiveDaysAgoStr) {
       setStatus("You can only log activities for the last 5 days.");
       return;
     }
 
-    if (selectedDate > today) {
+    if (selectedDateStr > todayStr) {
       setStatus("You cannot log activities for future dates.");
       return;
     }

@@ -20,9 +20,17 @@ export const sanitizeError = (error: any): string => {
     "Invalid email": "Please enter a valid email address.",
     "Weak password":
       "Password must be at least 8 characters and contain at least one number.",
+    "User already registered":
+      "An account with this email already exists. Please sign in instead.",
+    "Email address already in use":
+      "An account with this email already exists. Please sign in instead.",
+    user_already_exists:
+      "An account with this email already exists. Please sign in instead.",
 
     // Database errors
     "duplicate key value": "This record already exists.",
+    user_data_email_unique_idx:
+      "An account with this email already exists. Please sign in instead.",
     "foreign key constraint":
       "Cannot complete this action due to related data.",
     "check constraint": "The provided data is invalid.",
@@ -142,3 +150,30 @@ if (typeof window !== "undefined") {
     globalRateLimiter.cleanup();
   }, 10 * 60 * 1000);
 }
+
+/**
+ * Checks if an email already exists in the system
+ * Queries the user_data table which now includes email field
+ */
+export const checkEmailExists = async (email: string): Promise<boolean> => {
+  try {
+    // Import supabase here to avoid circular dependencies
+    const { supabase } = await import("../config/supabase");
+
+    // Use the secure database function instead of direct table query
+    const { data, error } = await supabase.rpc("check_email_exists", {
+      check_email: email.trim().toLowerCase(),
+    });
+
+    if (error) {
+      console.warn("Error checking email existence:", error);
+      return false; // Fail gracefully
+    }
+
+    // The function returns a boolean directly
+    return data === true;
+  } catch (error) {
+    console.warn("Error in email existence check:", error);
+    return false;
+  }
+};

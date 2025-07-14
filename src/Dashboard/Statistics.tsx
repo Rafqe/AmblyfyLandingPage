@@ -88,6 +88,15 @@ const Statistics: React.FC<StatisticsProps> = ({ user, darkMode }) => {
     if (user) {
       fetchStatisticsData();
       fetchUserGoals();
+    } else {
+      // Clean up state when user becomes null (e.g., during logout)
+      setTodayLog(null);
+      setWeeklyLogs([]);
+      setUserGoals({
+        daily_goal_minutes: 240,
+        weekly_goal_minutes: 1680,
+      });
+      setLoading(false);
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -139,8 +148,11 @@ const Statistics: React.FC<StatisticsProps> = ({ user, darkMode }) => {
 
       // Set weekly logs
       setWeeklyLogs(weeklyLogs);
-    } catch (error) {
-      console.error("Error fetching statistics data:", error);
+    } catch (error: any) {
+      // Don't log RLS policy errors during logout
+      if (error?.code !== "42501") {
+        console.error("Error fetching statistics data:", error);
+      }
     } finally {
       setLoading(false);
     }
@@ -161,22 +173,31 @@ const Statistics: React.FC<StatisticsProps> = ({ user, darkMode }) => {
       if (data) {
         setUserGoals(data);
       } else {
-        // Create default goals if none exist
-        const { error: insertError } = await supabase
-          .from("user_goals")
-          .insert([
-            {
-              user_id: user.id,
-              daily_goal_minutes: 240,
-              weekly_goal_minutes: 1680,
-            },
-          ]);
+        // Only try to create default goals if we have a valid user session
+        // Check if auth session is still valid before attempting to create goals
+        const { data: session } = await supabase.auth.getSession();
+        if (session?.session?.user?.id === user.id) {
+          const { error: insertError } = await supabase
+            .from("user_goals")
+            .insert([
+              {
+                user_id: user.id,
+                daily_goal_minutes: 240,
+                weekly_goal_minutes: 1680,
+              },
+            ]);
 
-        if (insertError)
-          console.error("Error creating default goals:", insertError);
+          if (insertError && insertError.code !== "42501") {
+            // Don't log RLS policy errors (42501) as they're expected during logout
+            console.error("Error creating default goals:", insertError);
+          }
+        }
       }
-    } catch (error) {
-      console.error("Error fetching user goals:", error);
+    } catch (error: any) {
+      // Don't log RLS policy errors during logout
+      if (error?.code !== "42501") {
+        console.error("Error fetching user goals:", error);
+      }
     }
   };
 
