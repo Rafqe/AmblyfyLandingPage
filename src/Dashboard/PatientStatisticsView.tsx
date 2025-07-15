@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "../config/supabase";
 import { User } from "@supabase/supabase-js";
 import Statistics from "./Statistics";
@@ -15,6 +15,10 @@ interface Patient {
   email: string;
 }
 
+// Cache for patient data to avoid refetching
+const patientsCache = new Map<string, { data: Patient[]; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 const PatientStatisticsView: React.FC<PatientStatisticsViewProps> = ({
   user,
   darkMode,
@@ -23,8 +27,24 @@ const PatientStatisticsView: React.FC<PatientStatisticsViewProps> = ({
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Optimized fetch function with caching and single query
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchPatients = useCallback(async () => {
     if (!user) return;
+
+    // Check cache first
+    const cacheKey = user.id;
+    const cached = patientsCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && now - cached.timestamp < CACHE_DURATION) {
+      setPatients(cached.data);
+      if (cached.data.length > 0 && !selectedPatient) {
+        setSelectedPatient(cached.data[0]);
+      }
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -39,6 +59,11 @@ const PatientStatisticsView: React.FC<PatientStatisticsViewProps> = ({
 
       if (!accessData || accessData.length === 0) {
         setPatients([]);
+        // Cache empty result
+        patientsCache.set(cacheKey, {
+          data: [],
+          timestamp: now,
+        });
         return;
       }
 
@@ -59,13 +84,19 @@ const PatientStatisticsView: React.FC<PatientStatisticsViewProps> = ({
 
       if (error) throw error;
 
-      const transformedPatients =
+      const transformedPatients: Patient[] =
         patientsData?.map((patient: any) => ({
           user_id: patient.user_id,
           name: patient.name || "",
           surname: patient.surname || "",
           email: patient.email || "",
         })) || [];
+
+      // Cache the results
+      patientsCache.set(cacheKey, {
+        data: transformedPatients,
+        timestamp: now,
+      });
 
       setPatients(transformedPatients);
 
@@ -75,10 +106,11 @@ const PatientStatisticsView: React.FC<PatientStatisticsViewProps> = ({
       }
     } catch (error) {
       console.error("Error fetching patients:", error);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
-  }, [user, selectedPatient]);
+  }, [user]); // selectedPatient intentionally excluded to prevent re-fetch loops
 
   useEffect(() => {
     if (user) {
@@ -86,14 +118,27 @@ const PatientStatisticsView: React.FC<PatientStatisticsViewProps> = ({
     }
   }, [user, fetchPatients]);
 
-  // Create a mock user object for the selected patient
-  const patientAsUser = selectedPatient
-    ? {
-        ...user!,
-        id: selectedPatient.user_id,
-        email: selectedPatient.email,
-      }
-    : null;
+  // Memoize patientAsUser to prevent unnecessary re-renders
+  const patientAsUser = useMemo(() => {
+    if (!selectedPatient || !user) return null;
+
+    return {
+      ...user,
+      id: selectedPatient.user_id,
+      email: selectedPatient.email,
+    };
+  }, [selectedPatient, user]);
+
+  // Optimized patient selection handler
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const handlePatientChange = useCallback(
+    (patientId: string) => {
+      const patient = patients.find((p) => p.user_id === patientId);
+      setSelectedPatient(patient || null);
+    },
+    [patients] // selectedPatient intentionally excluded to avoid infinite loops
+  );
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   if (loading) {
     return (
@@ -144,12 +189,7 @@ const PatientStatisticsView: React.FC<PatientStatisticsViewProps> = ({
           <div className="relative">
             <select
               value={selectedPatient?.user_id || ""}
-              onChange={(e) => {
-                const patient = patients.find(
-                  (p) => p.user_id === e.target.value
-                );
-                setSelectedPatient(patient || null);
-              }}
+              onChange={(e) => handlePatientChange(e.target.value)}
               className={`px-4 py-2 rounded-lg border-2 focus:ring-2 focus:ring-brand-cyan focus:border-transparent transition-colors ${
                 darkMode
                   ? "bg-gray-700 border-gray-600 text-white"

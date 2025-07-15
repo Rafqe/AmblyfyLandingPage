@@ -15,6 +15,10 @@ interface Patient {
   email: string;
 }
 
+// Cache for patient data to avoid refetching
+const patientsCache = new Map<string, { data: Patient[]; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 const PatientCalendarView: React.FC<PatientCalendarViewProps> = ({
   user,
   darkMode,
@@ -24,8 +28,24 @@ const PatientCalendarView: React.FC<PatientCalendarViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [calendarKey, setCalendarKey] = useState(0);
 
+  // Optimized fetch function with caching and single query
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchPatients = useCallback(async () => {
     if (!user) return;
+
+    // Check cache first
+    const cacheKey = user.id;
+    const cached = patientsCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && now - cached.timestamp < CACHE_DURATION) {
+      setPatients(cached.data);
+      if (cached.data.length > 0 && !selectedPatient) {
+        setSelectedPatient(cached.data[0]);
+      }
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -40,6 +60,11 @@ const PatientCalendarView: React.FC<PatientCalendarViewProps> = ({
 
       if (!accessData || accessData.length === 0) {
         setPatients([]);
+        // Cache empty result
+        patientsCache.set(cacheKey, {
+          data: [],
+          timestamp: now,
+        });
         return;
       }
 
@@ -60,7 +85,7 @@ const PatientCalendarView: React.FC<PatientCalendarViewProps> = ({
 
       if (error) throw error;
 
-      const transformedPatients =
+      const transformedPatients: Patient[] =
         patientsData?.map((patient: any) => ({
           user_id: patient.user_id,
           name: patient.name || "",
@@ -68,13 +93,20 @@ const PatientCalendarView: React.FC<PatientCalendarViewProps> = ({
           email: patient.email || "",
         })) || [];
 
+      // Cache the results
+      patientsCache.set(cacheKey, {
+        data: transformedPatients,
+        timestamp: now,
+      });
+
       setPatients(transformedPatients);
     } catch (error) {
       console.error("Error fetching patients:", error);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user]); // selectedPatient intentionally excluded to prevent re-fetch loops
 
   // Auto-select first patient when patients list changes
   useEffect(() => {
@@ -90,6 +122,7 @@ const PatientCalendarView: React.FC<PatientCalendarViewProps> = ({
   }, [user, fetchPatients]);
 
   // Handle patient selection change
+  /* eslint-disable react-hooks/exhaustive-deps */
   const handlePatientChange = useCallback(
     (patientId: string) => {
       const patient = patients.find((p) => p.user_id === patientId);
@@ -97,8 +130,9 @@ const PatientCalendarView: React.FC<PatientCalendarViewProps> = ({
       // Force calendar to remount with new key to prevent flickering
       setCalendarKey((prev) => prev + 1);
     },
-    [patients]
+    [patients] // selectedPatient intentionally excluded to avoid infinite loops
   );
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   // Memoize patientAsUser to prevent unnecessary re-renders
   const patientAsUser = useMemo(() => {

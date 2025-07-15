@@ -133,6 +133,7 @@ function App() {
             session ? <Navigate to="/dashboard" replace /> : <LoginPage />
           }
         />
+
         <Route
           path="/dashboard"
           element={session ? <Dashboard /> : <Navigate to="/login" replace />}

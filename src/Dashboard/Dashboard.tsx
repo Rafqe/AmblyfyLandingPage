@@ -325,6 +325,7 @@ const Dashboard: React.FC = () => {
                 </button>
               </>
             )}
+
             <button
               onClick={() => setCurrentPage("settings")}
               className={`font-extrabold transition-colors rounded-md px-2 py-2 text-xs lg:text-sm ${
@@ -492,6 +493,7 @@ const Dashboard: React.FC = () => {
                   </button>
                 </>
               )}
+
               <button
                 onClick={() => {
                   setCurrentPage("settings");
@@ -537,7 +539,8 @@ const Dashboard: React.FC = () => {
       </header>
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center">
-        {currentPage === "settings" ? (
+        {/* Settings Page */}
+        <div className={currentPage === "settings" ? "block" : "hidden"}>
           <Settings
             user={user}
             profile={profile}
@@ -546,65 +549,114 @@ const Dashboard: React.FC = () => {
             darkMode={darkMode}
             onDarkModeToggle={handleDarkModeToggle}
           />
-        ) : currentPage === "patients" && isDoctor ? (
-          <div className="flex items-start justify-center w-full m-0 p-0">
+        </div>
+
+        {/* Doctor Pages */}
+        {isDoctor && (
+          <>
+            {/* Patients Management */}
             <div
-              className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
-                darkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="flex items-start justify-center w-full m-0 p-0"
+              style={{ display: currentPage === "patients" ? "flex" : "none" }}
             >
-              <GoalsManagement user={user} darkMode={darkMode} />
+              <div
+                className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                }`}
+              >
+                <GoalsManagement user={user} darkMode={darkMode} />
+              </div>
             </div>
-          </div>
-        ) : currentPage === "patient-calendar" && isDoctor ? (
-          <div className="flex items-start justify-center w-full m-0 p-0">
+
+            {/* Patient Calendar View */}
             <div
-              className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
-                darkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="flex items-start justify-center w-full m-0 p-0"
+              style={{
+                display: currentPage === "patient-calendar" ? "flex" : "none",
+              }}
             >
-              <PatientCalendarView user={user} darkMode={darkMode} />
+              <div
+                className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                }`}
+              >
+                <PatientCalendarView user={user} darkMode={darkMode} />
+              </div>
             </div>
-          </div>
-        ) : currentPage === "patient-stats" && isDoctor ? (
-          <div className="flex items-start justify-center w-full m-0 p-0">
+
+            {/* Patient Statistics View */}
             <div
-              className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
-                darkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className="flex items-start justify-center w-full m-0 p-0"
+              style={{
+                display: currentPage === "patient-stats" ? "flex" : "none",
+              }}
             >
-              <PatientStatisticsView user={user} darkMode={darkMode} />
+              <div
+                className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                }`}
+              >
+                <PatientStatisticsView user={user} darkMode={darkMode} />
+              </div>
             </div>
-          </div>
-        ) : currentPage === "calendar" && !isDoctor ? (
-          <div className="flex items-start justify-center w-full m-0 p-0">
+          </>
+        )}
+
+        {/* Patient Pages */}
+        {!isDoctor && (
+          <>
+            {/* Patient Calendar */}
             <div
-              className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
-                darkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className={
+                currentPage === "calendar"
+                  ? "flex items-start justify-center w-full m-0 p-0"
+                  : "hidden"
+              }
             >
-              <Calendar
-                user={user}
-                darkMode={darkMode}
-                key={`calendar-${refreshKey}`}
-              />
+              <div
+                className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                }`}
+              >
+                <Calendar
+                  user={user}
+                  darkMode={darkMode}
+                  key={`calendar-${refreshKey}`}
+                />
+              </div>
             </div>
-          </div>
-        ) : currentPage === "statistics" && !isDoctor ? (
-          <div className="flex items-start justify-center w-full m-0 p-0">
+
+            {/* Patient Statistics */}
             <div
-              className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
-                darkMode ? "bg-gray-800" : "bg-white"
-              }`}
+              className={
+                currentPage === "statistics"
+                  ? "flex items-start justify-center w-full m-0 p-0"
+                  : "hidden"
+              }
             >
-              <Statistics
-                user={user}
-                darkMode={darkMode}
-                key={`statistics-${refreshKey}`}
-              />
+              <div
+                className={`w-full max-w-screen-lg h-[calc(100dvh-30px-50px-64px)] lg:mt-[30px] lg:ml-[70px] lg:mr-[70px] lg:mb-[50px] md:mt-4 md:ml-6 md:mr-6 md:mb-6 mt-2 ml-2 mr-2 mb-2 rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)] p-[30px] overflow-auto ${
+                  darkMode ? "bg-gray-800" : "bg-white"
+                }`}
+              >
+                <Statistics
+                  user={user}
+                  darkMode={darkMode}
+                  key={`statistics-${refreshKey}`}
+                />
+              </div>
             </div>
-          </div>
-        ) : (
+          </>
+        )}
+
+        {/* Dashboard Home */}
+        <div
+          className={
+            currentPage === "dashboard"
+              ? "flex items-start justify-center w-full m-0 p-0"
+              : "hidden"
+          }
+        >
           <div className="flex items-start justify-center w-full m-0 p-0">
             {needsProfile ? (
               <div
@@ -823,7 +875,7 @@ const Dashboard: React.FC = () => {
               </div>
             )}
           </div>
-        )}
+        </div>
       </main>
     </div>
   );
